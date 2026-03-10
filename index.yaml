@@ -1,0 +1,30 @@
+apiVersion: v1
+entries:
+  poc-onprem:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2026-03-10T11:21:01.851382648Z"
+    description: A Helm chart for POC On-Premise RAG deployment with Airflow, LLM
+      services, and document processing
+    digest: bf3103794a61714f4529bda84c341cf2f2f60f508608557535bc4ef4ff116286
+    home: https://github.com/your-org/drax-rag-poc-onprem
+    icon: https://airflow.apache.org/images/feature-image.png
+    keywords:
+    - airflow
+    - llm
+    - rag
+    - ollama
+    - minio
+    - qdrant
+    - postgresql
+    maintainers:
+    - email: team@example.com
+      name: POC Team
+    name: poc-onprem
+    sources:
+    - https://github.com/your-org/drax-rag-poc-onprem
+    type: application
+    urls:
+    - https://github.com/schabrolles/airflow-poc-oprem-helm/releases/download/poc-onprem-0.0.1/poc-onprem-0.0.1.tgz
+    version: 0.0.1
+generated: "2026-03-10T11:21:01.851388624Z"
