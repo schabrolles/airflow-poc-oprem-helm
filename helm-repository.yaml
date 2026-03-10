@@ -1,0 +1,7 @@
+apiVersion: helm.openshift.io/v1beta1
+kind: HelmChartRepository
+metadata:
+  name: airflow-poc-oprem-helm
+spec:
+  connectionConfig:
+    url: 'https://schabrolles.github.io/airflow-poc-oprem-helm'
