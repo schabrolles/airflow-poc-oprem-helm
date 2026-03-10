@@ -1,0 +1,185 @@
+================================================================================
+🎉 POC On-Premise RAG Deployment Successfully Installed!
+================================================================================
+
+Release Name: {{ .Release.Name }}
+Namespace: {{ include "poc-onprem.namespace" . }}
+Chart Version: {{ .Chart.Version }}
+App Version: {{ .Chart.AppVersion }}
+
+================================================================================
+📋 DEPLOYMENT STATUS
+================================================================================
+
+To check the status of your deployment:
+
+  kubectl get pods -n {{ include "poc-onprem.namespace" . }}
+  kubectl get services -n {{ include "poc-onprem.namespace" . }}
+  kubectl get routes -n {{ include "poc-onprem.namespace" . }}
+
+To watch the deployment progress:
+
+  kubectl get pods -n {{ include "poc-onprem.namespace" . }} -w
+
+================================================================================
+🔗 ACCESSING YOUR APPLICATIONS
+================================================================================
+
+{{- if .Values.routes.enabled }}
+
+Get the application URLs:
+
+  # Airflow Web UI
+  {{- if .Values.airflow.apiServer.route.enabled }}
+  echo "Airflow: https://$(kubectl get route airflow-api-server -n {{ include "poc-onprem.namespace" . }} -o jsonpath='{.spec.host}')"
+  {{- end }}
+
+  # MinIO Console
+  {{- if .Values.minio.routes.console.enabled }}
+  echo "MinIO Console: https://$(kubectl get route minio-console -n {{ include "poc-onprem.namespace" . }} -o jsonpath='{.spec.host}')"
+  {{- end }}
+
+  # Chat Docs UI
+  {{- if .Values.services.chatDocsUi.route.enabled }}
+  echo "Chat Docs UI: https://$(kubectl get route chat-docs-ui -n {{ include "poc-onprem.namespace" . }} -o jsonpath='{.spec.host}')"
+  {{- end }}
+
+{{- else }}
+
+Routes are disabled. To access services, use port-forwarding:
+
+  # Airflow Web UI
+  kubectl port-forward -n {{ include "poc-onprem.namespace" . }} svc/airflow-api-server 8080:8080
+
+  # MinIO Console
+  kubectl port-forward -n {{ include "poc-onprem.namespace" . }} svc/minio 9001:9001
+
+  # Chat Docs UI
+  kubectl port-forward -n {{ include "poc-onprem.namespace" . }} svc/chat-docs-ui 8080:80
+
+{{- end }}
+
+================================================================================
+🔐 DEFAULT CREDENTIALS
+================================================================================
+
+⚠️  IMPORTANT: Change these credentials in production!
+
+Airflow:
+  - Create admin user after first deployment:
+    kubectl exec -n {{ include "poc-onprem.namespace" . }} -it deployment/airflow-api-server -- \
+      airflow users create --username admin --password admin \
+      --firstname Admin --lastname User --role Admin --email admin@example.com
+
+MinIO:
+  - Username: {{ .Values.minio.credentials.rootUser }}
+  - Password: {{ .Values.minio.credentials.rootPassword }}
+
+PostgreSQL (Airflow):
+  - Username: {{ .Values.postgresql.airflow.credentials.username }}
+  - Password: {{ .Values.postgresql.airflow.credentials.password }}
+  - Database: {{ .Values.postgresql.airflow.credentials.database }}
+
+PostgreSQL (PDF):
+  - Username: {{ .Values.postgresql.pdf.credentials.username }}
+  - Password: {{ .Values.postgresql.pdf.credentials.password }}
+  - Database: {{ .Values.postgresql.pdf.credentials.database }}
+
+================================================================================
+📊 MONITORING DEPLOYMENT
+================================================================================
+
+Check deployment status:
+
+  kubectl get deployments -n {{ include "poc-onprem.namespace" . }}
+
+View logs for a specific service:
+
+  # Airflow API Server
+  kubectl logs -n {{ include "poc-onprem.namespace" . }} -f deployment/airflow-api-server
+
+  # LLM Embedding Service (may take 5-10 minutes to start)
+  kubectl logs -n {{ include "poc-onprem.namespace" . }} -f deployment/ollama-llm-embedding
+
+  # Chat Docs Service
+  kubectl logs -n {{ include "poc-onprem.namespace" . }} -f deployment/chat-docs-service
+
+Check PVC status:
+
+  kubectl get pvc -n {{ include "poc-onprem.namespace" . }}
+
+================================================================================
+⚠️  IMPORTANT NOTES
+================================================================================
+
+1. LLM Services Startup Time:
+   - Ollama services may take 5-10 minutes to download and load models
+   - Monitor with: kubectl logs -f deployment/ollama-llm-embedding -n {{ include "poc-onprem.namespace" . }}
+
+2. Airflow Logs PVC:
+   - Requires ReadWriteMany (RWX) storage class
+   - Ensure your cluster supports RWX (NFS, CephFS, GlusterFS, etc.)
+
+3. Database Initialization:
+   - PostgreSQL databases will initialize on first start
+   - Wait for databases to be ready before other services start
+
+4. Security:
+   - Change all default passwords immediately in production
+   - Consider using external secret management (Sealed Secrets, Vault, etc.)
+   - Review and adjust resource limits based on your workload
+
+5. Image Registry:
+   - Update image registry in values.yaml: global.imageRegistry
+   - Ensure all images are built and pushed to your registry
+
+================================================================================
+📚 NEXT STEPS
+================================================================================
+
+1. Verify all pods are running:
+   kubectl get pods -n {{ include "poc-onprem.namespace" . }}
+
+2. Create Airflow admin user (see credentials section above)
+
+3. Access MinIO and create buckets for PDF storage
+
+4. Upload PDF documents to MinIO buckets
+
+5. Monitor Airflow DAGs for automatic processing
+
+6. Access Chat Docs UI to interact with your documents
+
+================================================================================
+🆘 TROUBLESHOOTING
+================================================================================
+
+If pods are not starting:
+
+  kubectl describe pod <pod-name> -n {{ include "poc-onprem.namespace" . }}
+  kubectl logs <pod-name> -n {{ include "poc-onprem.namespace" . }}
+
+If PVCs are not binding:
+
+  kubectl describe pvc <pvc-name> -n {{ include "poc-onprem.namespace" . }}
+  # Check if your cluster has a default storage class:
+  kubectl get storageclass
+
+For more information:
+  helm status {{ .Release.Name }} -n {{ include "poc-onprem.namespace" . }}
+  helm get values {{ .Release.Name }} -n {{ include "poc-onprem.namespace" . }}
+
+================================================================================
+📖 DOCUMENTATION
+================================================================================
+
+For detailed documentation, see the chart README:
+  https://github.com/your-org/drax-rag-poc-onprem
+
+To upgrade this release:
+  helm upgrade {{ .Release.Name }} ./helm/poc-onprem -n {{ include "poc-onprem.namespace" . }}
+
+To uninstall:
+  helm uninstall {{ .Release.Name }} -n {{ include "poc-onprem.namespace" . }}
+
+================================================================================

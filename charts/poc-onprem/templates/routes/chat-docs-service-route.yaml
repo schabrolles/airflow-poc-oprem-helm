@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: chat-docs-service
+  namespace: {{ include "poc-onprem.namespace" . }}
+  labels:
+    app: chat-docs-service
+  annotations:
+    haproxy.router.openshift.io/timeout: 300s    
+spec:
+  to:
+    kind: Service
+    name: chat-docs-service
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None
+
+# Made with Bob

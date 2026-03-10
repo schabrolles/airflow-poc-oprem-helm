@@ -1,0 +1,614 @@
+# Default values for poc-onprem Helm chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global configuration
+global:
+  # Namespace where all resources will be deployed
+  namespace: poc-onprem
+
+  # Container image registry (change to your registry)
+  imageRegistry: "quay.io/tncibmniceteam"
+
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+
+  # Image pull secrets for private registries
+  imagePullSecrets:
+    - name: quay-pull-secret
+
+# Service Account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # The name of the service account to use
+  name: poc-onprem-sa
+  # scc / rbac
+  scc:
+    name: poc-onprem-scc-rolebinding
+    clusterRoleName: system:openshift:scc:anyuid
+# ============================================================================
+# DATABASE SERVICES
+# ============================================================================
+
+# PostgreSQL for Airflow
+postgresql:
+  airflow:
+    enabled: true
+    image:
+      repository: postgres
+      tag: "15"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Database credentials - ⚠️ CHANGE IN PRODUCTION!
+    credentials:
+      username: airflow
+      password: airflow
+      database: airflow
+
+    # Persistent storage
+    persistence:
+      enabled: true
+      size: 10Gi
+      # storageClassName: ""  # Use default storage class
+      accessMode: ReadWriteOnce
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+    # Health check configuration
+    livenessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+  # PostgreSQL for PDF extraction service
+  pdf:
+    enabled: true
+    image:
+      repository: postgres
+      tag: "15"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Database credentials - ⚠️ CHANGE IN PRODUCTION!
+    credentials:
+      username: pdfuser
+      password: pdfpassword
+      database: pdfdb
+
+    # Persistent storage
+    persistence:
+      enabled: true
+      size: 20Gi
+      # storageClassName: ""
+      accessMode: ReadWriteOnce
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+
+    # Health check configuration
+    livenessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+    # Init script for database schema
+    initScript:
+      enabled: true
+
+# ============================================================================
+# INFRASTRUCTURE SERVICES
+# ============================================================================
+
+# MinIO object storage
+minio:
+  enabled: true
+  image:
+    repository: minio/minio
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  # MinIO credentials - ⚠️ CHANGE IN PRODUCTION!
+  credentials:
+    rootUser: minioadmin
+    rootPassword: minioadmin
+
+  # Persistent storage
+  persistence:
+    enabled: true
+    size: 50Gi
+    # storageClassName: ""
+    accessMode: ReadWriteOnce
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    apiPort: 9000
+    consolePort: 9001
+
+  # Route configuration for external access
+  routes:
+    api:
+      enabled: true
+      host: "" # Auto-generated if empty
+    console:
+      enabled: true
+      host: "" # Auto-generated if empty
+
+# Qdrant vector database
+qdrant:
+  enabled: true
+  image:
+    repository: qdrant/qdrant
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  # Persistent storage
+  persistence:
+    enabled: true
+    size: 30Gi
+    # storageClassName: ""
+    accessMode: ReadWriteOnce
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 6333
+    grpcPort: 6334
+
+# ============================================================================
+# LLM SERVICES
+# ============================================================================
+
+# Ollama LLM services
+ollama:
+  # Embedding model service
+  embedding:
+    enabled: true
+    image:
+      repository: poc-onprem-ollama-llm-embedding
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Model configuration
+    model: "nomic-embed-text"
+
+    # Persistent storage for model data
+    persistence:
+      enabled: true
+      size: 10Gi
+      # storageClassName: ""
+      accessMode: ReadWriteOnce
+
+    # Resource limits - LLM services require significant resources
+    resources:
+      requests:
+        memory: "4Gi"
+        cpu: "2000m"
+      limits:
+        memory: "8Gi"
+        cpu: "4000m"
+
+    # Health check configuration - longer timeouts for model loading
+    livenessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 60
+
+    readinessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 60
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 11434
+
+  # Chat model service
+  chat:
+    enabled: true
+    image:
+      repository: poc-onprem-ollama-llm-chat
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Model configuration
+    model: "tinyllama"
+
+    # Persistent storage for model data
+    persistence:
+      enabled: true
+      size: 10Gi
+      # storageClassName: ""
+      accessMode: ReadWriteOnce
+
+    # Resource limits - LLM services require significant resources
+    resources:
+      requests:
+        memory: "4Gi"
+        cpu: "2000m"
+      limits:
+        memory: "10Gi"
+        cpu: "4000m"
+
+    # Health check configuration - longer timeouts for model loading
+    livenessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 60
+
+    readinessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 60
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 11434
+
+# ============================================================================
+# AIRFLOW COMPONENTS
+# ============================================================================
+
+airflow:
+  # Airflow secrets - ⚠️ CHANGE IN PRODUCTION!
+  secrets:
+    fernetKey: "q0xPBBjEFENFHslSCgZPb-XIT66kb27N36AtX7YNN94="
+    internalApiSecretKey: "RqzCPqKJi7MxJZPaRThQuWvXkeW4F_tHdFo8ELBq3rI="
+    jwtSecret: "RqzCPqKJi7MxJZPaRThQuWvXkeW4F_tHdFo8ELBq3rI="
+
+  # Airflow configuration
+  config:
+    loadExamples: "false"
+    exposeConfig: "true"
+    authManager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    apiAuthBackends: "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"
+    fabAuthBackends: "airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"
+
+  # Airflow UID
+  uid: "50000"
+
+  # Persistent storage for logs (requires ReadWriteMany)
+  logs:
+    persistence:
+      enabled: true
+      size: 10Gi
+      # storageClassName: ""  # Must support ReadWriteMany (RWX)
+      accessMode: ReadWriteMany
+
+  # DAGs configuration (stored in ConfigMap)
+  dags:
+    persistence:
+      enabled: false # DAGs loaded from ConfigMap, not PVC
+
+  # API Server
+  apiServer:
+    enabled: true
+    image:
+      repository: poc-onprem-airflow-api-server
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 8080
+
+    # Route configuration for external access
+    route:
+      enabled: true
+      host: "" # Auto-generated if empty
+
+    # Init container for database migration
+    initContainer:
+      enabled: true
+
+  # Scheduler
+  scheduler:
+    enabled: true
+    image:
+      repository: poc-onprem-airflow-scheduler
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+
+  # DAG Processor
+  dagProcessor:
+    enabled: true
+    image:
+      repository: poc-onprem-airflow-dag-processor
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+# ============================================================================
+# APPLICATION SERVICES
+# ============================================================================
+
+services:
+  # Typing PDF Extractor Service
+  typingPdfExtractor:
+    enabled: true
+    image:
+      repository: poc-onprem-typing-pdf-extractor-service
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 8000
+
+  # Embedding Service
+  embedding:
+    enabled: true
+    image:
+      repository: poc-onprem-embedding-service
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 8000
+
+  # Chat Docs Service
+  chatDocs:
+    enabled: true
+    image:
+      repository: poc-onprem-chat-docs-service
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Debug port configuration
+    debug:
+      enabled: true
+      port: 5679
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "2000m"
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 8000
+
+    # Route configuration for external access
+    route:
+      enabled: true
+      host: "" # Auto-generated if empty
+
+  # Chat Docs UI
+  chatDocsUi:
+    enabled: true
+    image:
+      repository: poc-onprem-chat-docs-ui
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+
+    # Service configuration
+    service:
+      type: ClusterIP
+      port: 80
+
+    # Route configuration for external access
+    route:
+      enabled: true
+      host: "" # Auto-generated if empty
+
+# ============================================================================
+# SERVICES CONFIGURATION
+# ============================================================================
+
+# Configuration for application services
+servicesConfig:
+  # Database configuration
+  database:
+    host: "pg-typing-pdf-extractor-db"
+    name: "pdfdb"
+    user: "pdfuser"
+    password: "pdfpassword"
+
+  # Qdrant configuration
+  qdrant:
+    host: "qdrant-vector-db"
+    port: "6333"
+
+  # Ollama configuration
+  ollama:
+    chatModel: "tinyllama"
+    embeddingModel: "nomic-embed-text"
+    embeddingUrl: "http://ollama-llm-embedding:11434"
+
+  # Chat UI configuration
+  # Note: Update this URL after deployment with your actual route
+  chatApiUrl: "http://chat-docs-service:8000/ask_llm_model"
+
+# ============================================================================
+# ROUTES CONFIGURATION (OpenShift-specific)
+# ============================================================================
+
+routes:
+  # Enable/disable all routes
+  enabled: true
+
+  # TLS configuration
+  tls:
+    enabled: true
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
+# ============================================================================
+# SECURITY WARNINGS
+# ============================================================================
+
+# ⚠️ IMPORTANT SECURITY NOTES:
+#
+# 1. CHANGE ALL DEFAULT PASSWORDS before deploying to production!
+#    - postgresql.airflow.credentials.password
+#    - postgresql.pdf.credentials.password
+#    - minio.credentials.rootPassword
+#    - airflow.secrets.*
+#
+# 2. Consider using external secret management:
+#    - Sealed Secrets
+#    - External Secrets Operator
+#    - HashiCorp Vault
+#
+# 3. Update image registry to your private registry
+#
+# 4. Review and adjust resource limits based on your workload
+#
+# 5. Ensure your cluster has a StorageClass that supports ReadWriteMany (RWX)
+#    for Airflow logs (e.g., NFS, CephFS, GlusterFS)
+#
+# 6. Update servicesConfig.chatApiUrl after deployment with actual route URL
+
+# Made with Bob
+
+# ============================================================================
+# RBAC CONFIGURATION
+# ============================================================================
+

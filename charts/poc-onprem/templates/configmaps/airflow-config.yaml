@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+  namespace: {{ include "poc-onprem.namespace" . }}
+  labels:
+    {{- include "poc-onprem.labels" . | nindent 4 }}
+data:
+  AIRFLOW__CORE__LOAD_EXAMPLES: {{ .Values.airflow.config.loadExamples | quote }}
+  AIRFLOW__WEBSERVER__EXPOSE_CONFIG: {{ .Values.airflow.config.exposeConfig | quote }}
+  AIRFLOW__CORE__AUTH_MANAGER: {{ .Values.airflow.config.authManager | quote }}
+  AIRFLOW__API__AUTH_BACKENDS: {{ .Values.airflow.config.apiAuthBackends | quote }}
+  AIRFLOW__FAB__AUTH_BACKENDS: {{ .Values.airflow.config.fabAuthBackends | quote }}
+  AIRFLOW__CORE__EXECUTION_API_SERVER_URL: "http://airflow-api-server.{{ include "poc-onprem.namespace" . }}:8080/execution"
+  AIRFLOW_UID: {{ .Values.airflow.uid | quote }}
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://{{ .Values.postgresql.airflow.credentials.username }}:{{ .Values.postgresql.airflow.credentials.password }}@pg-airflow-db:5432/{{ .Values.postgresql.airflow.credentials.database }}"
+  AIRFLOW_CONN_PDF_DB: "postgresql://{{ .Values.postgresql.pdf.credentials.username }}:{{ .Values.postgresql.pdf.credentials.password }}@pg-typing-pdf-extractor-db:5432/{{ .Values.postgresql.pdf.credentials.database }}"
+
+# Made with Bob

@@ -1,0 +1,17 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: chat-docs-ui
+  namespace: {{ include "poc-onprem.namespace" . }}
+  labels:
+    app: chat-docs-ui
+spec:
+  to:
+    kind: Service
+    name: chat-docs-ui
+    weight: 100
+  port:
+    targetPort: http
+  wildcardPolicy: None
+
+# Made with Bob
